@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction of No-Reflow after PCI</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .result h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .probability {
+            font-size: 36px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .formula {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .variable-desc {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Prediction of No-Reflow after PCI</h1>
+        
+        <div class="formula">
+            <strong>Formula：</strong><br>
+            P = 1 / (1 + exp(-Logit(P)))<br>
+            Logit(P) = -1.726740 + 0.003185×AST + 0.555394×cTn - 0.140857×Preop_TIMI + 0.321918×Stent_count + 2.247905×Intraop_Hypotension + 0.573874×Disease_Type
+        </div>
+        
+        <form id="calculatorForm">
+            <div class="form-group">
+                <label for="ast">AST</label>
+                <input type="number" id="ast" name="ast" step="0.01" min="0" required>
+                <div class="variable-desc">Enter AST value (positive numbers only)</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="ctn">cTn (Binary Variable)</label>
+                <select id="ctn" name="ctn" required>
+                    <option value="">Select</option>
+                    <option value="0">Negative</option>
+                    <option value="1">Positive</option>
+                </select>
+                <div class="variable-desc">Negative = 0, Positive = 1</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="preopTimi">Preop_TIMI</label>
+                <select id="preopTimi" name="preopTimi" required>
+                    <option value="">Select</option>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+                <div class="variable-desc">Range: Integer between 0-3</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="stentCount">Stent_count</label>
+                <input type="number" id="stentCount" name="stentCount" min="0" max="10" step="1" required>
+                <div class="variable-desc">Range: Integer between 0-10</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="intraopHypotension">Intraop_Hypotension</label>
+                <select id="intraopHypotension" name="intraopHypotension" required>
+                    <option value="">Select</option>
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                </select>
+                <div class="variable-desc">Whether intraoperative hypotension occurred</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="diseaseType">Disease_Type</label>
+                <select id="diseaseType" name="diseaseType" required>
+                    <option value="">Select</option>
+                    <option value="0">UA</option>
+                    <option value="1">NSTEMI</option>
+                    <option value="2">STEMI</option>
+                </select>
+                <div class="variable-desc">UA = Unstable Angina, NSTEMI = Non-ST Elevation Myocardial Infarction, STEMI = ST Elevation Myocardial Infarction</div>
+            </div>
+            
+            <button type="button" onclick="calculateProbability()">Calculate Probability</button>
+        </form>
+        
+        <div class="result" id="result" style="display: none;">
+            <h2>Calculation Result</h2>
+            <div class="probability" id="probability"></div>
+            <p id="interpretation"></p>
+            <div id="recommendations" class="recommendations"></div>
+        </div>
+    </div>
+    
+    <script>
+        function calculateProbability() {
+            // Get input values
+            const ast = parseFloat(document.getElementById('ast').value);
+            const ctn = parseInt(document.getElementById('ctn').value);
+            const preopTimi = parseInt(document.getElementById('preopTimi').value);
+            const stentCount = parseInt(document.getElementById('stentCount').value);
+            const intraopHypotension = parseInt(document.getElementById('intraopHypotension').value);
+            const diseaseType = parseInt(document.getElementById('diseaseType').value);
+            
+            // Calculate Logit(P)
+            const logit = -1.726740 + 0.003185 * ast + 0.555394 * ctn - 0.140857 * preopTimi + 0.321918 * stentCount + 2.247905 * intraopHypotension + 0.573874 * diseaseType;
+            
+            // Calculate probability P
+            const probability = 1 / (1 + Math.exp(-logit));
+            
+            // Display results
+            const resultDiv = document.getElementById('result');
+            const probabilityDiv = document.getElementById('probability');
+            const interpretationDiv = document.getElementById('interpretation');
+            const recommendationsDiv = document.getElementById('recommendations');
+            
+            probabilityDiv.textContent = (probability * 100).toFixed(2) + '%';
+            
+            // Add result interpretation
+            let interpretation = '';
+            if (probability < 0.3) {
+                interpretation = 'Low Risk';
+            } else if (probability < 0.7) {
+                interpretation = 'Medium Risk';
+            } else {
+                interpretation = 'High Risk';
+            }
+            interpretationDiv.textContent = `Risk Assessment: ${interpretation}`;
+            
+            // Add detailed recommendations based on risk
+            let recommendations = '';
+            if (probability < 0.3) {
+                recommendations = '<h3>Recommendations:</h3>' +
+                                '<ul>' +
+                                '<li>Standard post-PCI care is recommended</li>' +
+                                '<li>Continue routine monitoring of vital signs</li>' +
+                                '<li>Follow-up according to institutional protocols</li>' +
+                                '</ul>';
+            } else if (probability < 0.7) {
+                recommendations = '<h3>Recommendations:</h3>' +
+                                '<ul>' +
+                                '<li>Enhanced monitoring in the first 24-48 hours post-PCI</li>' +
+                                '<li>Consider additional antiplatelet therapy if clinically indicated</li>' +
+                                '<li>Monitor cardiac enzymes closely</li>' +
+                                '<li>Patient education on warning signs of no-reflow</li>' +
+                                '</ul>';
+            } else {
+                recommendations = '<h3>Recommendations:</h3>' +
+                                '<ul>' +
+                                '<li>Intensive monitoring in CCU setting</li>' +
+                                '<li>Consider preventive measures for no-reflow (e.g., vasodilators)</li>' +
+                                '<li>Frequent assessment of cardiac function</li>' +
+                                '<li>Early involvement of interventional cardiology team</li>' +
+                                '<li>Patient education on warning signs and emergency contacts</li>' +
+                                '</ul>';
+            }
+            recommendationsDiv.innerHTML = recommendations;
+            
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
